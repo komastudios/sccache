@@ -27,6 +27,8 @@ pub struct S3Cache {
     use_ssl: Option<bool>,
     server_side_encryption: Option<bool>,
     enable_virtual_host_style: Option<bool>,
+    access_key_id: Option<String>,
+    secret_access_key: Option<String>,
 }
 
 impl S3Cache {
@@ -40,6 +42,8 @@ impl S3Cache {
             use_ssl: None,
             server_side_encryption: None,
             enable_virtual_host_style: None,
+            access_key_id: None,
+            secret_access_key: None,
         }
     }
     pub fn with_region(mut self, region: Option<String>) -> Self {
@@ -65,8 +69,24 @@ impl S3Cache {
         self.enable_virtual_host_style = enable_virtual_host_style;
         self
     }
+    pub fn with_access_key_id(mut self, access_key_id: Option<String>) -> Self {
+        self.access_key_id = access_key_id;
+        self
+    }
+    pub fn with_secret_access_key(mut self, secret_access_key: Option<String>) -> Self {
+        self.secret_access_key = secret_access_key;
+        self
+    }
     pub fn build(self) -> Result<Operator> {
         let mut builder = S3::default().bucket(&self.bucket).root(&self.key_prefix);
+
+        if let Some(access_key_id) = &self.access_key_id {
+            builder = builder.access_key_id(access_key_id);
+        }
+
+        if let Some(secret_access_key) = &self.secret_access_key {
+            builder = builder.secret_access_key(secret_access_key);
+        }
 
         if let Some(region) = &self.region {
             builder = builder.region(region);

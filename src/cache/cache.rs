@@ -688,6 +688,8 @@ pub fn storage_from_config(
                     .with_use_ssl(c.use_ssl)
                     .with_server_side_encryption(c.server_side_encryption)
                     .with_enable_virtual_host_style(c.enable_virtual_host_style)
+                    .with_access_key_id(c.access_key_id.clone())
+                    .with_secret_access_key(c.secret_access_key.clone())
                     .build()
                     .map_err(|err| anyhow!("create s3 cache failed: {err:?}"))?;
 

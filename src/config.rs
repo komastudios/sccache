@@ -350,6 +350,8 @@ pub struct S3CacheConfig {
     pub use_ssl: Option<bool>,
     pub server_side_encryption: Option<bool>,
     pub enable_virtual_host_style: Option<bool>,
+    pub access_key_id: Option<String>,
+    pub secret_access_key: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -670,6 +672,8 @@ fn config_from_env() -> Result<EnvConfig> {
         let endpoint = env::var("SCCACHE_ENDPOINT").ok();
         let key_prefix = key_prefix_from_env_var("SCCACHE_S3_KEY_PREFIX");
         let enable_virtual_host_style = bool_from_env_var("SCCACHE_S3_ENABLE_VIRTUAL_HOST_STYLE")?;
+        let access_key_id = env::var("SCCACHE_AWS_ACCESS_KEY_ID").ok();
+        let secret_access_key = env::var("SCCACHE_AWS_SECRET_ACCESS_KEY").ok();
 
         Some(S3CacheConfig {
             bucket,
@@ -680,6 +684,8 @@ fn config_from_env() -> Result<EnvConfig> {
             use_ssl,
             server_side_encryption,
             enable_virtual_host_style,
+            access_key_id,
+            secret_access_key,
         })
     } else {
         None
@@ -687,7 +693,9 @@ fn config_from_env() -> Result<EnvConfig> {
 
     if s3.as_ref().map(|s3| s3.no_credentials).unwrap_or_default()
         && (env::var_os("AWS_ACCESS_KEY_ID").is_some()
-            || env::var_os("AWS_SECRET_ACCESS_KEY").is_some())
+            || env::var_os("AWS_SECRET_ACCESS_KEY").is_some()
+            || env::var_os("SCCACHE_AWS_ACCESS_KEY_ID").is_some()
+            || env::var_os("SCCACHE_AWS_SECRET_ACCESS_KEY").is_some())
     {
         bail!("If setting S3 credentials, SCCACHE_S3_NO_CREDENTIALS must not be set.");
     }
@@ -1343,7 +1351,34 @@ fn config_overrides() {
 #[test]
 #[serial]
 #[cfg(feature = "s3")]
-fn test_s3_no_credentials_conflict() {
+fn test_s3_no_credentials_conflict_sccache_vars() {
+    unsafe {
+        env::set_var("SCCACHE_S3_NO_CREDENTIALS", "true");
+        env::set_var("SCCACHE_BUCKET", "my-bucket");
+        env::set_var("SCCACHE_AWS_ACCESS_KEY_ID", "aws-access-key-id");
+        env::set_var("SCCACHE_AWS_SECRET_ACCESS_KEY", "aws-secret-access-key");
+    }
+
+    let cfg = config_from_env();
+
+    unsafe {
+        env::remove_var("SCCACHE_S3_NO_CREDENTIALS");
+        env::remove_var("SCCACHE_BUCKET");
+        env::remove_var("SCCACHE_AWS_ACCESS_KEY_ID");
+        env::remove_var("SCCACHE_AWS_SECRET_ACCESS_KEY");
+    }
+
+    let error = cfg.unwrap_err();
+    assert_eq!(
+        "If setting S3 credentials, SCCACHE_S3_NO_CREDENTIALS must not be set.",
+        error.to_string()
+    );
+}
+
+#[test]
+#[serial]
+#[cfg(feature = "s3")]
+fn test_s3_no_credentials_conflict_aws_vars() {
     unsafe {
         env::set_var("SCCACHE_S3_NO_CREDENTIALS", "true");
         env::set_var("SCCACHE_BUCKET", "my-bucket");
@@ -1545,8 +1580,10 @@ region = "us-east-2"
 endpoint = "s3-us-east-1.amazonaws.com"
 use_ssl = true
 key_prefix = "s3prefix"
-no_credentials = true
+no_credentials = false
 server_side_encryption = false
+access_key_id = "some_access_key_id"
+secret_access_key = "some_secret_access_key"
 
 [cache.webdav]
 endpoint = "http://127.0.0.1:8080"
@@ -1609,9 +1646,11 @@ no_credentials = true
                     endpoint: Some("s3-us-east-1.amazonaws.com".to_owned()),
                     use_ssl: Some(true),
                     key_prefix: "s3prefix".into(),
-                    no_credentials: true,
+                    no_credentials: false,
                     server_side_encryption: Some(false),
                     enable_virtual_host_style: None,
+                    access_key_id: Some("some_access_key_id".to_owned()),
+                    secret_access_key: Some("some_secret_access_key".to_owned()),
                 }),
                 webdav: Some(WebdavCacheConfig {
                     endpoint: "http://127.0.0.1:8080".to_string(),
