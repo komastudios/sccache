@@ -80,12 +80,15 @@ impl S3Cache {
     pub fn build(self) -> Result<Operator> {
         let mut builder = S3::default().bucket(&self.bucket).root(&self.key_prefix);
 
-        if let Some(access_key_id) = &self.access_key_id {
-            builder = builder.access_key_id(access_key_id);
-        }
-
-        if let Some(secret_access_key) = &self.secret_access_key {
-            builder = builder.secret_access_key(secret_access_key);
+        match (&self.access_key_id, &self.secret_access_key) {
+            (Some(access_key_id), Some(secret_access_key)) => {
+                builder = builder.access_key_id(access_key_id);
+                builder = builder.secret_access_key(secret_access_key);
+            }
+            (None, None) => (),
+            _ => {
+                bail!("Both access_key_id and secret_access_key must be set or both must be unset.")
+            }
         }
 
         if let Some(region) = &self.region {
