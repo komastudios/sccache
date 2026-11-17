@@ -69,7 +69,8 @@ jobs:
         with:
           files: target/integration-coverage/reports/lcov.info
           name: codecov-umbrella-integration-${{ matrix.type }}
-          fail_ci_if_error: true
+          # komastudios fork: no Codecov token, so only fatal upstream.
+          fail_ci_if_error: ${{ github.repository == 'mozilla/sccache' }}
           # verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

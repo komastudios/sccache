@@ -245,7 +245,8 @@ jobs:
           ## flags: IntegrationTests, UnitTests, ${{ steps.vars.outputs.CODECOV_FLAGS }}
           flags: ${{ steps.vars.outputs.CODECOV_FLAGS }}
           name: codecov-umbrella-${{ matrix.os }}-rust_${{ matrix.rustc || 'stable' }}-${{ matrix.extra_desc }}
-          fail_ci_if_error: true
+          # komastudios fork: no Codecov token, so only fatal upstream.
+          fail_ci_if_error: ${{ github.repository == 'mozilla/sccache' }}
           # verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
