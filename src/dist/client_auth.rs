@@ -11,11 +11,11 @@ use std::io;
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::mpsc;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 use url::Url;
 use uuid::Uuid;
 
 use crate::errors::*;
+use crate::util::new_client_runtime;
 
 // These (arbitrary) ports need to be registered as valid redirect urls in the oauth provider you're using
 pub const VALID_PORTS: &[u16] = &[12731, 32492, 56909];
@@ -246,7 +246,7 @@ mod code_grant_pkce {
             grant_type: GRANT_TYPE_PARAM_VALUE,
             redirect_uri,
         };
-        let client = new_reqwest_blocking_client();
+        let client = new_reqwest_blocking_client().context("failed to build OAuth HTTP client")?;
         let res = client.post(token_url).json(&token_request).send()?;
         if !res.status().is_success() {
             bail!(
@@ -537,7 +537,7 @@ pub fn get_token_oauth2_code_grant_pkce(
     mut auth_url: Url,
     token_url: &str,
 ) -> Result<String> {
-    let runtime = Runtime::new()?;
+    let runtime = new_client_runtime()?;
     let mut server = runtime.block_on(async move { try_bind().await })?;
     let port = server.local_addr().port();
 
@@ -576,7 +576,7 @@ pub fn get_token_oauth2_code_grant_pkce(
             warn!(
                 "Something went wrong while waiting for auth server shutdown: {}",
                 e
-            )
+            );
         }
     });
     handle.abort();
@@ -591,7 +591,7 @@ pub fn get_token_oauth2_code_grant_pkce(
 
 // https://auth0.com/docs/api-auth/tutorials/implicit-grant
 pub fn get_token_oauth2_implicit(client_id: &str, mut auth_url: Url) -> Result<String> {
-    let runtime = Runtime::new()?;
+    let runtime = new_client_runtime()?;
     let mut server = runtime.block_on(async move { try_bind().await })?;
     let port = server.local_addr().port();
     let _guard = runtime.enter();
@@ -623,7 +623,7 @@ pub fn get_token_oauth2_implicit(client_id: &str, mut auth_url: Url) -> Result<S
             warn!(
                 "Something went wrong while waiting for auth server shutdown: {}",
                 e
-            )
+            );
         }
     });
     handle.abort();
